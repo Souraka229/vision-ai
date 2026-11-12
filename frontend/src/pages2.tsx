@@ -66,6 +66,16 @@ export function Control({ s }: { s: Status }) {
         <div className="card border-accent flex items-center justify-between"><span className="text-sm">Action sensible en attente : <b>{s.control.pending}</b></span>
           <button className="btn-accent" onClick={() => api("/api/control/confirm", "POST")}>Confirmer</button></div>)}
       {msg && <div className="text-sm text-red-400">{msg}</div>}
+      <div className="card text-sm space-y-1">
+        <div className="text-zinc-400">Pour que le curseur suive votre main, il faut les 4 points :</div>
+        {([
+          [s.running, "Caméra démarrée"],
+          [en, "Contrôle activé (bouton Activer ci-dessus ; il se désactive si vous arrêtez la caméra)"],
+          [s.settings.air_mouse, "Souris aérienne activée (interrupteur ci-dessous)"],
+          [s.state.hands.length > 0, "Une main est détectée par la caméra"],
+        ] as [boolean, string][]).map(([ok, t]) => (
+          <div key={t} className={ok ? "text-green-400" : "text-red-400"}>{ok ? "✓" : "✗"} <span className="text-zinc-300">{t}</span></div>))}
+      </div>
       <div className="card">
         <Toggle on={s.settings.air_mouse} onChange={(v) => api("/api/settings", "POST", { air_mouse: v })} label="Souris aérienne : la main déplace le curseur" />
         <div className="text-xs text-zinc-400 mb-2">Pincer pouce + index = clic · maintenir 0,4 s = glisser-déposer · pouce + majeur = clic droit · deux doigts levés (PEACE) puis monter/descendre la main = défilement. Le contrôle doit être activé ci-dessus.</div>

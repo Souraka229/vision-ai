@@ -142,7 +142,7 @@ class FakeControl:
     def __init__(self):
         self.log = []
 
-    def move_cursor(self, x, y, m=0.15): self.log.append(("move",))
+    def move_cursor(self, x, y, m=0.15, smooth=0.35): self.log.append(("move",))
     def click(self, b="left"): self.log.append(("click", b))
     def mouse_down(self): self.log.append(("down",))
     def mouse_up(self): self.log.append(("up",))
@@ -200,3 +200,18 @@ def test_airmouse_release_drops_button():
     m.update(_pinched("index"), None, 0.6)
     m.release()
     assert c.log[-1] == ("up",)
+
+
+def test_cursor_never_hits_screen_corner_and_follows_without_lag():
+    class PG:
+        moves = []
+        def size(self): return (1920, 1080)
+        def moveTo(self, x, y): self.moves.append((x, y))
+    pg = PG()
+    c = ComputerController()
+    c._pg, c.enabled = pg, True
+    c.move_cursor(1.0, 0.0, 0.15, smooth=1.0)      # coin haut-gauche de l'écran (image miroir)
+    x, y = pg.moves[-1]
+    assert 3 <= x <= 1916 and 3 <= y <= 1076       # jamais exactement dans un coin
+    c.move_cursor(0.5, 0.5, 0.15, smooth=1.0)
+    assert abs(pg.moves[-1][0] - 959.5) < 2        # smooth=1.0 : position immédiate, sans traînée

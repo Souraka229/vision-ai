@@ -50,8 +50,10 @@ class ComputerController:
         self._smooth = None
         log.warning("Contrôle ordinateur STOPPÉ")
 
-    def move_cursor(self, nx: float, ny: float, margin: float = 0.15) -> None:
-        """nx, ny normalisés (0..1, image non miroir). Zone active réduite + lissage."""
+    def move_cursor(self, nx: float, ny: float, margin: float = 0.15, smooth: float = 0.35) -> None:
+        """nx, ny normalisés (0..1, image non miroir). Zone active réduite.
+
+        smooth=1.0 : pas de lissage ici (la souris aérienne filtre déjà en amont)."""
         if not self.enabled:
             return
         pg = self._gui()
@@ -61,8 +63,9 @@ class ComputerController:
         if self._smooth is None:
             self._smooth = (x, y)
         sx, sy = self._smooth
-        self._smooth = (sx + (x - sx) * 0.35, sy + (y - sy) * 0.35)
-        pg.moveTo(*self._smooth)
+        self._smooth = (sx + (x - sx) * smooth, sy + (y - sy) * smooth)
+        # 3 px de marge : les coins déclenchent le failsafe de PyAutoGUI (réservé à l'arrêt manuel)
+        pg.moveTo(min(max(self._smooth[0], 3), w - 4), min(max(self._smooth[1], 3), h - 4))
 
     # primitives utilisées par la souris aérienne (soumises au même interrupteur enabled)
     def click(self, button: str = "left") -> None:

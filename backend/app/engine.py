@@ -164,7 +164,13 @@ class Engine:
                     self.store.log("command", action)
         if s["air_mouse"] and self.control.enabled and not info.get("secondary"):
             self.air.configure(s["air_smoothing"], s["air_margin"])
-            res = self.air.update(h.landmarks, g)
+            try:
+                res = self.air.update(h.landmarks, g)
+            except Exception as e:  # noqa: BLE001 - ex. failsafe PyAutoGUI : on coupe le contrôle, le moteur continue
+                log.warning("souris aérienne arrêtée : %s", e)
+                self.control.stop()
+                self.last_error = f"Contrôle arrêté : {type(e).__name__}"
+                return
             if "click" in res or "drag" in res:
                 self.store.log("command", "air_click_" + str(res.get("click", "drag")))
         elif self.air.pinching or self.air.dragging:

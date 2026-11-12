@@ -84,7 +84,7 @@ class AirMouse:
 
         # pointeur
         p = self.f(np.array([lm[9][0], lm[9][1]], dtype=float), now)
-        self.control.move_cursor(float(p[0]), float(p[1]), self.margin)
+        self.control.move_cursor(float(p[0]), float(p[1]), self.margin, smooth=1.0)
         out["move"] = True
 
         # défilement : deux doigts levés, déplacement vertical

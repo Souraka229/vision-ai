@@ -14,11 +14,18 @@ export type Status = {
 
 export async function api<T = any>(path: string, method = "GET", body?: unknown): Promise<T> {
   const token = localStorage.getItem("token") || "";
-  const r = await fetch(path, {
-    method, headers: { "Content-Type": "application/json", "X-Token": token },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || `Erreur ${r.status}`);
+  const fail = (m: string): never => {
+    window.dispatchEvent(new CustomEvent("api-error", { detail: m }));  // bandeau visible : jamais d'échec silencieux
+    throw new Error(m);
+  };
+  let r: Response;
+  try {
+    r = await fetch(path, {
+      method, headers: { "Content-Type": "application/json", "X-Token": token },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch { return fail("Backend injoignable : relancez start.bat"); }
+  if (!r.ok) return fail((await r.json().catch(() => ({}))).detail || `Erreur ${r.status}`);
   return r.json();
 }
 

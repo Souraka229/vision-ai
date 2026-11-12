@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Guide } from "./pages4";
 import { BarChart3, BookOpen, Camera, Gauge, Hand, MousePointer2, ScanEye, Settings, Users } from "lucide-react";
 import { useStatus } from "./lib";
@@ -15,6 +15,13 @@ const NAV = [
 export default function App() {
   const s = useStatus();
   const [i, setI] = useState(0);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    let t: number;
+    const h = (e: Event) => { setErr((e as CustomEvent).detail); clearTimeout(t); t = window.setTimeout(() => setErr(""), 6000); };
+    window.addEventListener("api-error", h);
+    return () => window.removeEventListener("api-error", h);
+  }, []);
   const Page = NAV[i][2];
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -24,6 +31,7 @@ export default function App() {
           <button key={name} onClick={() => setI(k)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${k === i ? "bg-[#1f1f25] text-accent" : "text-zinc-400 hover:text-white"}`}>
             <Icon size={16} />{name}</button>))}
       </nav>
+      {err && <div className="fixed top-3 right-3 z-50 bg-red-950 border border-red-500 text-red-200 text-sm rounded-lg px-4 py-2 fade">{err}</div>}
       <main className="flex-1 p-4 md:p-6 max-w-6xl">
         {s ? <Page s={s} /> : <div className="text-zinc-400">Backend injoignable sur 127.0.0.1:8000. Lancez start.bat.</div>}
       </main>

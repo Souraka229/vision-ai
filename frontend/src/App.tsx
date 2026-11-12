@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { BarChart3, Camera, Gauge, Hand, MousePointer2, ScanEye, Settings, Users } from "lucide-react";
+import { Guide } from "./pages4";
+import { BarChart3, BookOpen, Camera, Gauge, Hand, MousePointer2, ScanEye, Settings, Users } from "lucide-react";
 import { useStatus } from "./lib";
 import { Live, Overview } from "./pages1";
 import { Control, People, Studio } from "./pages2";
 import { Analytics, CameraSettings, System } from "./pages3";
 
 const NAV = [
-  ["Overview", Gauge, Overview], ["Live Vision", ScanEye, Live], ["Gesture Studio", Hand, Studio],
+  ["Guide", BookOpen, Guide], ["Overview", Gauge, Overview], ["Live Vision", ScanEye, Live], ["Gesture Studio", Hand, Studio],
   ["Computer Control", MousePointer2, Control], ["People & Objects", Users, People],
   ["Analytics", BarChart3, Analytics], ["Camera Settings", Camera, CameraSettings], ["System Settings", Settings, System],
 ] as const;

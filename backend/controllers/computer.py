@@ -67,6 +67,21 @@ class ComputerController:
         # 3 px de marge : les coins déclenchent le failsafe de PyAutoGUI (réservé à l'arrêt manuel)
         pg.moveTo(min(max(self._smooth[0], 3), w - 4), min(max(self._smooth[1], 3), h - 4))
 
+    def move_relative(self, dx: float, dy: float) -> None:
+        """Déplace le curseur de (dx, dy) pixels, avec reste sous-pixel conservé (mouvements lents fluides)."""
+        if not self.enabled:
+            return
+        pg = self._gui()
+        w, h = pg.size()
+        x0, y0 = pg.position()
+        fx, fy = getattr(self, "_frac", (0.0, 0.0))
+        tx, ty = x0 + dx + fx, y0 + dy + fy
+        nx, ny = min(max(tx, 3), w - 4), min(max(ty, 3), h - 4)  # jamais dans un coin (failsafe)
+        ix, iy = int(round(nx)), int(round(ny))
+        self._frac = (nx - ix, ny - iy)
+        if (ix, iy) != (x0, y0):
+            pg.moveTo(ix, iy)
+
     # primitives utilisées par la souris aérienne (soumises au même interrupteur enabled)
     def click(self, button: str = "left") -> None:
         if self.enabled and button in ("left", "right"):

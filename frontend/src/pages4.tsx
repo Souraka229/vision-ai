@@ -10,7 +10,8 @@ const GESTES: [string, string, string][] = [
 ];
 
 const AIR: [string, string][] = [
-  ["Déplacer le curseur", "Bougez simplement la main devant la caméra."],
+  ["Déplacer le curseur", "Bougez la main, comme sur un trackpad : un petit geste du poignet suffit pour traverser l'écran. Lent = précis, rapide = grands déplacements."],
+  ["Pause / repositionner", "Fermez le poing : le curseur s'arrête. Replacez la main confortablement, rouvrez-la, continuez (comme soulever une souris)."],
   ["Clic gauche", "Pincez le pouce contre l'index, puis relâchez."],
   ["Glisser-déposer", "Pincez pouce + index et gardez 0,4 s, déplacez, puis relâchez."],
   ["Clic droit", "Pincez le pouce contre le majeur."],

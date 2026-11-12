@@ -79,6 +79,13 @@ export function Control({ s }: { s: Status }) {
       <div className="card">
         <Toggle on={s.settings.air_mouse} onChange={(v) => api("/api/settings", "POST", { air_mouse: v })} label="Souris aérienne : la main déplace le curseur" />
         <div className="text-xs text-zinc-400 mb-2">Pincer pouce + index = clic · maintenir 0,4 s = glisser-déposer · pouce + majeur = clic droit · deux doigts levés (PEACE) puis monter/descendre la main = défilement. Le contrôle doit être activé ci-dessus.</div>
+        <label className="flex justify-between items-center text-sm">Mode
+          <select className="bg-ink border border-edge rounded px-2 py-1" value={s.settings.air_mode} onChange={(e) => api("/api/settings", "POST", { air_mode: e.target.value })}>
+            <option value="relative">Trackpad (petits mouvements, recommandé)</option>
+            <option value="absolute">Absolu (la main = position à l'écran)</option></select></label>
+        <label className="flex justify-between items-center text-sm">Vitesse : {s.settings.air_speed.toFixed(1)}x
+          <input type="range" min={0.5} max={3} step={0.1} value={s.settings.air_speed} onChange={(e) => api("/api/settings", "POST", { air_speed: +e.target.value })} className="accent-[#ff7a1a]" /></label>
+        <div className="text-xs text-zinc-500">Poing fermé = pause du curseur (comme soulever une souris) : repositionnez la main, rouvrez-la, continuez. Pendant la souris aérienne, la détection YOLO est suspendue pour garder la fluidité.</div>
         <label className="flex justify-between items-center text-sm">Lissage : {Math.round(s.settings.air_smoothing * 100)}%
           <input type="range" min={0} max={1} step={0.1} value={s.settings.air_smoothing} onChange={(e) => api("/api/settings", "POST", { air_smoothing: +e.target.value })} className="accent-[#ff7a1a]" /></label>
         <label className="flex justify-between items-center text-sm">Bords ignorés : {Math.round(s.settings.air_margin * 100)}%

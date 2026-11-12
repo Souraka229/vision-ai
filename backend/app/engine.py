@@ -163,7 +163,8 @@ class Engine:
                 if res == "executed":
                     self.store.log("command", action)
         if s["air_mouse"] and self.control.enabled and not info.get("secondary"):
-            self.air.configure(s["air_smoothing"], s["air_margin"])
+            self.air.configure(s["air_smoothing"], s["air_margin"], s["air_mode"], s["air_speed"])
+            self.air.screen_w = float(self.control._gui().size()[0])
             try:
                 res = self.air.update(h.landmarks, g)
             except Exception as e:  # noqa: BLE001 - ex. failsafe PyAutoGUI : on coupe le contrôle, le moteur continue
@@ -178,6 +179,12 @@ class Engine:
 
     def _run_objects(self, frame, view, i: int) -> None:
         mods = self.settings.data["modules"]
+        # priorité à la réactivité : YOLO (lent sur CPU) se met en pause pendant que la souris aérienne pilote
+        if self.settings.data["air_mouse"] and self.control.enabled:
+            if self.state["objects"]:
+                self.state["objects"] = []
+                self.state["interactions"] = []
+            return
         if not mods["objects"]:
             if self.objects:
                 self.objects = None

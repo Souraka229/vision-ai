@@ -61,17 +61,26 @@ class AirMouse:
         self.last_scroll_y: float | None = None
         self.last: dict = {}
 
-    def configure(self, smoothing: float, margin: float) -> None:
-        self.f.min_cutoff = float(np.interp(smoothing, [0, 1], [3.0, 0.4]))  # 1 = très lissé
-        self.margin = margin
-
+    BASE_GAIN = 2.8   # traverser l'écran en bougeant la main sur ~36 % de la largeur de l'image
+    mode = "relative"
+    speed = 1.0
     margin = 0.15
+    screen_w = 1920.0
+    prev: np.ndarray | None = None
+    prev_t = 0.0
+
+    def configure(self, smoothing: float, margin: float, mode: str = "relative", speed: float = 1.0) -> None:
+        # 0 = très réactif, 1 = très lissé ; beta élevé : le filtre lâche prise dès que la main accélère
+        self.f.min_cutoff = float(np.interp(smoothing, [0, 1], [4.0, 0.8]))
+        self.f.beta = 0.08
+        self.margin, self.mode, self.speed = margin, mode, float(speed)
 
     def release(self) -> None:
         if self.dragging:
             self.control.mouse_up()
         self.pinching = self.dragging = False
         self.last_scroll_y = None
+        self.prev = None  # la main revient : pas de saut du curseur
         self.f.reset()
 
     def update(self, lm: np.ndarray, gesture: str | None, now: float | None = None) -> dict:
@@ -82,10 +91,25 @@ class AirMouse:
         idx_pinch = _d(lm[4], lm[8]) / size
         mid_pinch = _d(lm[4], lm[12]) / size
 
-        # pointeur
-        p = self.f(np.array([lm[9][0], lm[9][1]], dtype=float), now)
-        self.control.move_cursor(float(p[0]), float(p[1]), self.margin, smooth=1.0)
-        out["move"] = True
+        # pointeur : moyenne des 3 articulations de base des doigts (stable quand on pince)
+        raw = (lm[5][:2] + lm[9][:2] + lm[13][:2]) / 3.0
+        p = self.f(raw.astype(float), now)
+        if self.mode == "absolute":
+            self.control.move_cursor(float(p[0]), float(p[1]), self.margin, smooth=1.0)
+            out["move"] = True
+        else:
+            dt = max(now - self.prev_t, 1e-3) if self.prev is not None else 1.0
+            delta = (p - self.prev) if self.prev is not None else np.zeros(2)
+            self.prev, self.prev_t = p.copy(), now
+            clutch = gesture == "FIST"                                   # poing = on « soulève la souris »
+            freeze = self.pinching and not self.dragging                 # le clic atterrit où on a visé
+            if not clutch and not freeze and dt < 0.3:
+                speed = float(np.linalg.norm(delta)) / dt                # unités d'image / seconde
+                accel = 0.6 + 1.2 * min(speed / 0.6, 1.0)                # lent = précis (0,6x), rapide = 1,8x
+                gain = self.BASE_GAIN * self.speed * accel
+                self.control.move_relative(-delta[0] * gain * self.screen_w, delta[1] * gain * self.screen_w)
+                out["move"] = True
+            out["clutch"] = clutch
 
         # défilement : deux doigts levés, déplacement vertical
         if gesture == "PEACE":

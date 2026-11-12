@@ -143,6 +143,7 @@ class FakeControl:
         self.log = []
 
     def move_cursor(self, x, y, m=0.15, smooth=0.35): self.log.append(("move",))
+    def move_relative(self, dx, dy): self.log.append(("rel", dx, dy))
     def click(self, b="left"): self.log.append(("click", b))
     def mouse_down(self): self.log.append(("down",))
     def mouse_up(self): self.log.append(("up",))
@@ -215,3 +216,65 @@ def test_cursor_never_hits_screen_corner_and_follows_without_lag():
     assert 3 <= x <= 1916 and 3 <= y <= 1076       # jamais exactement dans un coin
     c.move_cursor(0.5, 0.5, 0.15, smooth=1.0)
     assert abs(pg.moves[-1][0] - 959.5) < 2        # smooth=1.0 : position immédiate, sans traînée
+
+
+def _moved(hand_x, gesture="OPEN_PALM", t=0.0):
+    lm = hand([1, 1, 1, 1]).copy()
+    lm[:, 0] += hand_x
+    return lm, gesture, t
+
+
+def _total_dx(log):
+    return sum(e[1] for e in log if e[0] == "rel")
+
+
+def test_airmouse_small_hand_move_crosses_much_of_screen():
+    from backend.controllers.airmouse import AirMouse
+    c = FakeControl()
+    m = AirMouse(c)
+    m.screen_w = 1920.0
+    m.configure(0.0, 0.15, "relative", 1.0)
+    for i in range(10):                       # la main se déplace de 15 % de l'image en 0,3 s
+        lm, g, _ = _moved(0.015 * i)
+        m.update(lm, g, i * 0.033)
+    assert abs(_total_dx(c.log)) > 450        # >= 450 px pour 13 % d'image : ~3,5x plus qu'un mapping 1:1
+
+
+def test_airmouse_fist_is_a_clutch_and_return_does_not_jump():
+    from backend.controllers.airmouse import AirMouse
+    c = FakeControl()
+    m = AirMouse(c)
+    m.configure(0.0, 0.15, "relative", 1.0)
+    m.update(*_moved(0.0, "OPEN_PALM")[:2], 0.0)
+    c.log.clear()
+    for i in range(1, 6):                     # poing fermé pendant le déplacement : le curseur ne bouge pas
+        m.update(*_moved(0.05 * i, "FIST")[:2], i * 0.033)
+    assert _total_dx(c.log) == 0
+    m.release()                               # main sortie du champ puis revenue ailleurs
+    c.log.clear()
+    m.update(*_moved(0.5)[:2], 2.0)
+    assert _total_dx(c.log) == 0              # première image après retour : aucun saut
+
+
+def test_airmouse_pointer_frozen_while_pinching_so_click_lands_on_target():
+    from backend.controllers.airmouse import AirMouse
+    c = FakeControl()
+    m = AirMouse(c)
+    m.configure(0.0, 0.15, "relative", 1.0)
+    m.update(hand([1, 1, 1, 1]), "OPEN_PALM", 0.0)
+    c.log.clear()
+    pin = _pinched("index")
+    m.update(pin, None, 0.1)                  # début du pincement
+    pin2 = pin.copy(); pin2[:, 0] += 0.03
+    m.update(pin2, None, 0.15)                # la main bouge pendant le pincement
+    assert _total_dx(c.log) == 0
+
+
+def test_airmouse_slow_precise_fast_accelerated():
+    from backend.controllers.airmouse import AirMouse
+    def run(step, dt):
+        c = FakeControl(); m = AirMouse(c); m.screen_w = 1920.0; m.configure(0.0, 0.15, "relative", 1.0)
+        for i in range(8):
+            lm, g, _ = _moved(step * i); m.update(lm, g, i * dt)
+        return abs(_total_dx(c.log)) / (step * 7)    # pixels par unité d'image
+    assert run(0.04, 0.033) > 1.3 * run(0.002, 0.033)

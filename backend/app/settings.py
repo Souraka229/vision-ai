@@ -21,7 +21,9 @@ DEFAULTS: dict = {
     "yolo_every_n": 6,
     "yolo_model": "yolov8n.onnx",  # ex. yolov8s.onnx exporté depuis le notebook Colab (plus précis, plus lent)
     "air_mouse": False,         # souris aérienne (nécessite contrôle activé)
-    "air_smoothing": 0.5,       # 0 = réactif, 1 = très lissé
+    "air_mode": "relative",     # relative (comme un trackpad, peu de mouvement) | absolute (la main = position à l'écran)
+    "air_speed": 1.0,           # multiplicateur de vitesse du curseur (0,5 à 3)
+    "air_smoothing": 0.3,       # 0 = réactif, 1 = très lissé
     "air_margin": 0.15,         # bord de l'image ignoré : atteindre les coins sans tendre le bras
     "gesture_actions": {
         "OPEN_PALM": "none", "THUMBS_UP": "volume_up", "PEACE": "scroll_up",

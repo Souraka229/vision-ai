@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+frontend/dist/
+# données personnelles et secrets : jamais versionnés
+data/
+config/settings.json
+*.db
+*.pem
+# modèles lourds : téléchargés par scripts/download_models.py
+backend/models/*.onnx
+backend/models/*.task
+backend/models/*.joblib

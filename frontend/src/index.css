@@ -1,0 +1,6 @@
+@tailwind base; @tailwind components; @tailwind utilities;
+body { font-family: Inter, "Segoe UI", system-ui, sans-serif; }
+.card { @apply bg-panel border border-edge rounded-xl p-4; }
+.btn { @apply px-3 py-1.5 rounded-lg border border-edge bg-[#1b1b20] text-sm hover:border-accent transition-colors disabled:opacity-40; }
+.btn-accent { @apply px-3 py-1.5 rounded-lg bg-accent text-black text-sm font-medium hover:brightness-110 disabled:opacity-40; }
+.fade { animation: fade .25s ease-out; } @keyframes fade { from { opacity: 0; transform: translateY(4px); } }

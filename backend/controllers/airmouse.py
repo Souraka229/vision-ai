@@ -1,0 +1,126 @@
+"""Souris aérienne : le pointeur suit la main, le pincement clique, le maintien glisse.
+
+Conçu pour l'accessibilité (clavier/souris difficiles à utiliser) :
+- pointeur sur l'articulation du majeur (9), qui bouge peu quand on pince -> pas de saut au clic ;
+- filtre One Euro : stable à l'arrêt, réactif en mouvement ;
+- pincement pouce+index = clic gauche, maintenu 0,4 s = glisser-déposer ;
+- pincement pouce+majeur = clic droit ; deux doigts levés (PEACE) + mouvement vertical = défilement.
+"""
+from __future__ import annotations
+
+import math
+import time
+
+import numpy as np
+
+
+class OneEuro:
+    def __init__(self, min_cutoff: float = 1.0, beta: float = 0.02, d_cutoff: float = 1.0):
+        self.min_cutoff, self.beta, self.d_cutoff = min_cutoff, beta, d_cutoff
+        self.x: np.ndarray | None = None
+        self.dx = np.zeros(2)
+        self.t = 0.0
+
+    @staticmethod
+    def _alpha(cutoff: float, dt: float) -> float:
+        tau = 1.0 / (2 * math.pi * cutoff)
+        return 1.0 / (1.0 + tau / dt)
+
+    def __call__(self, p: np.ndarray, t: float) -> np.ndarray:
+        if self.x is None:
+            self.x, self.t = p.copy(), t
+            return p
+        dt = max(t - self.t, 1e-3)
+        dx = (p - self.x) / dt
+        self.dx += self._alpha(self.d_cutoff, dt) * (dx - self.dx)
+        cutoff = self.min_cutoff + self.beta * float(np.linalg.norm(self.dx))
+        self.x = self.x + self._alpha(cutoff, dt) * (p - self.x)
+        self.t = t
+        return self.x
+
+    def reset(self) -> None:
+        self.x = None
+
+
+def _d(a, b) -> float:
+    return float(np.linalg.norm(a[:2] - b[:2]))
+
+
+class AirMouse:
+    PINCH_ON, PINCH_OFF = 0.28, 0.40      # hystérésis (fraction de la taille de main)
+    HOLD_TO_DRAG = 0.4                     # secondes
+    RIGHT_COOLDOWN = 0.8
+
+    def __init__(self, control):
+        self.control = control
+        self.f = OneEuro()
+        self.pinching = False
+        self.pinch_t = 0.0
+        self.dragging = False
+        self.last_right = -1e9
+        self.last_scroll_y: float | None = None
+        self.last: dict = {}
+
+    def configure(self, smoothing: float, margin: float) -> None:
+        self.f.min_cutoff = float(np.interp(smoothing, [0, 1], [3.0, 0.4]))  # 1 = très lissé
+        self.margin = margin
+
+    margin = 0.15
+
+    def release(self) -> None:
+        if self.dragging:
+            self.control.mouse_up()
+        self.pinching = self.dragging = False
+        self.last_scroll_y = None
+        self.f.reset()
+
+    def update(self, lm: np.ndarray, gesture: str | None, now: float | None = None) -> dict:
+        """Traite une main. Retourne les actions effectuées (pour les tests et les stats)."""
+        now = time.time() if now is None else now
+        out: dict = {}
+        size = max(_d(lm[0], lm[9]), 1e-6)
+        idx_pinch = _d(lm[4], lm[8]) / size
+        mid_pinch = _d(lm[4], lm[12]) / size
+
+        # pointeur
+        p = self.f(np.array([lm[9][0], lm[9][1]], dtype=float), now)
+        self.control.move_cursor(float(p[0]), float(p[1]), self.margin)
+        out["move"] = True
+
+        # défilement : deux doigts levés, déplacement vertical
+        if gesture == "PEACE":
+            if self.last_scroll_y is not None:
+                dy = lm[9][1] - self.last_scroll_y
+                if abs(dy) > 0.004:
+                    self.control.scroll(int(-dy * 4000))
+                    out["scroll"] = dy
+            self.last_scroll_y = float(lm[9][1])
+        else:
+            self.last_scroll_y = None
+
+        # clic gauche / glisser (pincement pouce + index)
+        if not self.pinching and idx_pinch < self.PINCH_ON and mid_pinch > self.PINCH_OFF:
+            self.pinching, self.pinch_t = True, now
+        elif self.pinching:
+            held = now - self.pinch_t
+            if idx_pinch > self.PINCH_OFF:  # relâché
+                if self.dragging:
+                    self.control.mouse_up()
+                    out["drop"] = True
+                elif held < self.HOLD_TO_DRAG:
+                    self.control.click("left")
+                    out["click"] = "left"
+                self.pinching = self.dragging = False
+            elif held >= self.HOLD_TO_DRAG and not self.dragging:
+                self.control.mouse_down()
+                self.dragging = True
+                out["drag"] = True
+
+        # clic droit (pouce + majeur)
+        if not self.pinching and mid_pinch < self.PINCH_ON and idx_pinch > self.PINCH_OFF \
+                and now - self.last_right > self.RIGHT_COOLDOWN:
+            self.control.click("right")
+            self.last_right = now
+            out["click"] = "right"
+        self.last = out
+        return out
